@@ -17,15 +17,16 @@ import jmini3d.Object3d
 import jmini3d.android.loader.ObjLoader
 import jmini3d.Color4
 import jmini3d.Texture
+import android.os.AsyncTask
+import java.lang.ref.WeakReference
+
 
 class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListener {
 
     private lateinit var scene: Scene
     private lateinit var renderer: Renderer3d
     private var eyeRender = VREyeRender()
-    private var asteroids = ArrayList<Asteroid>()
-
-    private lateinit var staticAsteroid: Asteroid
+    private var asteroids = HashSet<Asteroid>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +36,7 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
 
         setupGvr()
         setupScene()
-        generateNextAsteroid(6000)
+        generateNextAsteroid(8000)
 
     }
 
@@ -72,7 +73,6 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     }
 
     private fun generateNextAsteroid(nextAsteroidDelay: Long) {
-        //addAsteroid()
         object : CountDownTimer(10000, nextAsteroidDelay) {
             override fun onTick(millisUntilFinished: Long) {
                 addAsteroid()
@@ -81,25 +81,33 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
             override fun onFinish() {
                 generateNextAsteroid((nextAsteroidDelay * 0.8).toLong())
             }
-
         }.start()
     }
 
     private fun addAsteroid() {
-        val white = Color4(255, 255, 255, 255)
-        val transparent = Color4(0, 0, 0, 0)
-        val geometry = ObjLoader().load(resources.assets.open("asteroid_geometry.obj"))
-        val material = PhongMaterial(Texture("asteroid_material.jpg"), white, white, transparent)
+        CreateAsteroidTask(this).execute()
+    }
 
-        val asteroid = Asteroid(Object3d(geometry, material), this)
-        asteroid.initAsteroid()
-        scene.addChild(asteroid.object3d)
-        asteroids.add(asteroid)
+    private class CreateAsteroidTask constructor(context: MainActivity) : AsyncTask<Void, Void, Asteroid>() {
 
+        private val activityReference: WeakReference<MainActivity> = WeakReference(context)
+
+        override fun doInBackground(vararg params: Void): Asteroid {
+            val white = Color4(255, 255, 255, 255)
+            val transparent = Color4(0, 0, 0, 0)
+            val geometry = ObjLoader().load(activityReference.get()!!.resources.assets.open("asteroid_geometry.obj"))
+            val material = PhongMaterial(Texture("asteroid_material.jpg"), white, white, transparent)
+            return Asteroid(Object3d(geometry, material), activityReference.get()!!)
+        }
+
+        override fun onPostExecute(asteroid: Asteroid) {
+            asteroid.initAsteroid()
+            activityReference.get()!!.scene.addChild(asteroid.object3d)
+            activityReference.get()!!.asteroids.add(asteroid)
+        }
     }
 
     override fun onCardboardTrigger() {
-        setupScene()
         vibrate()
     }
 

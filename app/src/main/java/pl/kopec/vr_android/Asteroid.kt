@@ -45,12 +45,6 @@ class Asteroid(val object3d: Object3d, val onAsteroidHitListener: OnAsteroidHitL
             }
         })
 
-//        xAnimator.addUpdateListener {
-//            if ((it.animatedValue as Float) == 0f) {
-//                onAsteroidHitListener.onAsteroidHit(this)
-//            }
-//        }
-
         xAnimator.start()
         yAnimator.start()
         zAnimator.start()
