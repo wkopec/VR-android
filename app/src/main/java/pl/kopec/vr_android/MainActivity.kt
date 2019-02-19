@@ -1,13 +1,8 @@
 package pl.kopec.vr_android
 
 import android.content.Context
-import android.os.Build
-import android.os.Bundle
-import android.os.VibrationEffect
-import android.os.Vibrator
+import android.os.*
 import com.google.vr.sdk.base.*
-import com.google.vr.sdk.widgets.pano.VrPanoramaEventListener
-import com.google.vr.sdk.widgets.pano.VrPanoramaView
 import kotlinx.android.synthetic.main.activity_main.*
 import javax.microedition.khronos.egl.EGLConfig
 import com.google.vr.sdk.base.GvrView
@@ -15,55 +10,34 @@ import jmini3d.android.Renderer3d
 import jmini3d.android.ResourceLoader
 import jmini3d.*
 import jmini3d.material.PhongMaterial
-import jmini3d.geometry.BoxGeometry
 import jmini3d.light.PointLight
 import jmini3d.light.AmbientLight
 import jmini3d.Object3d
-import android.animation.ValueAnimator
-import android.view.animation.Animation
 
+import jmini3d.android.loader.ObjLoader
+import jmini3d.Color4
+import jmini3d.Texture
 
-class MainActivity : GvrActivity(), GvrView.StereoRenderer {
+class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListener {
 
     private lateinit var scene: Scene
     private lateinit var renderer: Renderer3d
     private var eyeRender = VREyeRender()
-    private lateinit var cube: Object3d
+    private var asteroids = ArrayList<Asteroid>()
 
-    private lateinit var xAnimator: ValueAnimator
-    private lateinit var yAnimator: ValueAnimator
-    private lateinit var zAnimator: ValueAnimator
+    private lateinit var staticAsteroid: Asteroid
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         renderer = Renderer3d(ResourceLoader(this))
-        //setupPanorama()
+
         setupGvr()
         setupScene()
-        setupAnimator()
+        generateNextAsteroid(6000)
 
     }
-
-//    private fun setupPanorama() {
-//        val istr = resources.openRawResource(
-//            resources.getIdentifier(
-//                "andes", "raw", packageName
-//            )
-//        )
-//        val panoOptions = VrPanoramaView.Options()
-//        panoOptions.inputType = VrPanoramaView.Options.TYPE_STEREO_OVER_UNDER
-//        panoView.loadImageFromBitmap(BitmapFactory.decodeStream(istr), panoOptions)
-//        panoView.displayMode = 3
-//
-//        panoView.setEventListener(object : VrPanoramaEventListener() {
-//            override fun onClick() {
-//                super.onClick()
-//                Log.d("test", "CLICK!")
-//            }
-//        })
-//    }
 
     private fun setupGvr() {
 
@@ -88,7 +62,6 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer {
         scene.camera?.updateViewMatrix()
 
         val white = Color4(255, 255, 255)
-        val red = Color4(255, 128, 128)
 
         val light = AmbientLight(white, 0.5f)
         scene.addLight(light)
@@ -96,31 +69,34 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer {
         val light2 = PointLight(Vector3(3f, 0.5f, 1f), white, 0.5f)
         scene.addLight(light2)
 
-        val geometry = BoxGeometry(0.5f)
-        val material = PhongMaterial(red, white, white)
-        cube = Object3d(geometry, material)
-        cube.setPosition(0f, 0f, -5f)
-
-        scene.addChild(cube)
     }
 
-    private fun setupAnimator() {
-        xAnimator = ValueAnimator.ofFloat(2f, 0f)
-        yAnimator = ValueAnimator.ofFloat(3f, 0f)
-        zAnimator = ValueAnimator.ofFloat(-212f, 1f)
+    private fun generateNextAsteroid(nextAsteroidDelay: Long) {
+        //addAsteroid()
+        object : CountDownTimer(10000, nextAsteroidDelay) {
+            override fun onTick(millisUntilFinished: Long) {
+                addAsteroid()
+            }
 
-        xAnimator.repeatCount = Animation.INFINITE
-        xAnimator.duration = 5000
-        yAnimator.repeatCount = Animation.INFINITE
-        yAnimator.duration = 5000
-        zAnimator.repeatCount = Animation.INFINITE
-        zAnimator.duration = 5000
+            override fun onFinish() {
+                generateNextAsteroid((nextAsteroidDelay * 0.8).toLong())
+            }
 
-        xAnimator.start()
-        yAnimator.start()
-        zAnimator.start()
+        }.start()
     }
 
+    private fun addAsteroid() {
+        val white = Color4(255, 255, 255, 255)
+        val transparent = Color4(0, 0, 0, 0)
+        val geometry = ObjLoader().load(resources.assets.open("asteroid_geometry.obj"))
+        val material = PhongMaterial(Texture("asteroid_material.jpg"), white, white, transparent)
+
+        val asteroid = Asteroid(Object3d(geometry, material), this)
+        asteroid.initAsteroid()
+        scene.addChild(asteroid.object3d)
+        asteroids.add(asteroid)
+
+    }
 
     override fun onCardboardTrigger() {
         setupScene()
@@ -129,7 +105,9 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer {
 
 
     override fun onNewFrame(headTransform: HeadTransform?) {
-        cube.setPosition(xAnimator.animatedValue as Float, yAnimator.animatedValue as Float, zAnimator.animatedValue as Float)
+        asteroids.forEach {
+            it.updatePosition()
+        }
     }
 
     override fun onSurfaceChanged(width: Int, height: Int) {
@@ -141,7 +119,7 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer {
     }
 
     override fun onDrawEye(eye: Eye?) {
-        if(eye != null) {
+        if (eye != null) {
             eyeRender.render(scene, eye, renderer)
         }
     }
@@ -164,4 +142,10 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer {
         }
     }
 
+    override fun onAsteroidHit(asteroid: Asteroid) {
+        scene.removeChild(asteroid.object3d)
+        asteroids.remove(asteroid)
+    }
+
 }
+
