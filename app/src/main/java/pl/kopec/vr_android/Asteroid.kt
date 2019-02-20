@@ -28,19 +28,25 @@ class Asteroid(val object3d: Object3d, private val onAsteroidHitListener: OnAste
     }
 
     private fun setupPositionAnimator() {
-        xAnimator = ValueAnimator.ofFloat(2f, 0f)
-        yAnimator = ValueAnimator.ofFloat(3f, 0f)
-        zAnimator = ValueAnimator.ofFloat(-50f, 1f)
+
+        val duration = (5000..10000).shuffled().first()
+        val x = (-50..50).shuffled().first()
+        val y = (0..30).shuffled().first()
+        val z = (-50..50).filter { it < -15 || it > 15 }.shuffled().first()
+
+        xAnimator = ValueAnimator.ofFloat(x.toFloat(), 0f)
+        yAnimator = ValueAnimator.ofFloat(y.toFloat(), 0f)
+        zAnimator = ValueAnimator.ofFloat(z.toFloat(), 0f)
 
         xAnimator.repeatCount = Animation.ABSOLUTE
-        xAnimator.duration = 5000
+        xAnimator.duration = duration.toLong()
         yAnimator.repeatCount = Animation.ABSOLUTE
-        yAnimator.duration = 5000
+        yAnimator.duration = duration.toLong()
         zAnimator.repeatCount = Animation.ABSOLUTE
-        zAnimator.duration = 5000
+        zAnimator.duration = duration.toLong()
 
 
-        xAnimator.addListener(object : AnimatorListenerAdapter() {
+        zAnimator.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
                 onHit()
             }
@@ -52,7 +58,7 @@ class Asteroid(val object3d: Object3d, private val onAsteroidHitListener: OnAste
     }
 
     private fun onHit() {
-        if(!isAsteroidDestroyed) {
+        if (!isAsteroidDestroyed) {
             onAsteroidHitListener.onAsteroidHit(this)
         }
     }

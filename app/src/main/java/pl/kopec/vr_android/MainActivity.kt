@@ -85,10 +85,10 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
 
         val white = Color4(255, 255, 255)
 
-        val light = AmbientLight(white, 0.5f)
+        val light = AmbientLight(white, 1f)
         scene.addLight(light)
 
-        val light2 = PointLight(Vector3(3f, 0.5f, 1f), white, 0.5f)
+        val light2 = PointLight(Vector3(3f, 0.5f, 1f), white, 1f)
         scene.addLight(light2)
 
     }
