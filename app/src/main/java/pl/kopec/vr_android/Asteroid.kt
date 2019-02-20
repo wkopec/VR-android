@@ -6,7 +6,7 @@ import android.view.animation.Animation
 import jmini3d.Object3d
 import android.animation.Animator
 
-class Asteroid(val object3d: Object3d, val onAsteroidHitListener: OnAsteroidHitListener) {
+class Asteroid(val object3d: Object3d, private val onAsteroidHitListener: OnAsteroidHitListener) {
 
     private lateinit var xAnimator: ValueAnimator
     private lateinit var yAnimator: ValueAnimator

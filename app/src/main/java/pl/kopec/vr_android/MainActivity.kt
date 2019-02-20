@@ -1,6 +1,7 @@
 package pl.kopec.vr_android
 
 import android.content.Context
+import android.opengl.Matrix
 import android.os.*
 import com.google.vr.sdk.base.*
 import kotlinx.android.synthetic.main.activity_main.*
@@ -19,7 +20,7 @@ import jmini3d.Color4
 import jmini3d.Texture
 import android.os.AsyncTask
 import java.lang.ref.WeakReference
-
+import android.os.Vibrator
 
 class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListener {
 
@@ -28,15 +29,35 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     private var eyeRender = VREyeRender()
     private var asteroids = HashSet<Asteroid>()
 
+    private var camera: FloatArray? = null
+    private var view: FloatArray? = null
+    private var headView: FloatArray? = null
+    private var modelViewProjection: FloatArray? = null
+    private var modelView: FloatArray? = null
+    private var tempPosition: FloatArray? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         renderer = Renderer3d(ResourceLoader(this))
 
+        setupArrays()
         setupGvr()
         setupScene()
         generateNextAsteroid(8000)
+
+    }
+
+    private fun setupArrays() {
+
+        //modelCube = FloatArray(16)
+        camera = FloatArray(16)
+        view = FloatArray(16)
+        modelViewProjection = FloatArray(16)
+        modelView = FloatArray(16)
+        tempPosition = FloatArray(4)
+        headView = FloatArray(16)
 
     }
 
@@ -108,13 +129,31 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     }
 
     override fun onCardboardTrigger() {
-        vibrate()
+        asteroids.forEach {
+            if(isLookingAtObject(it.object3d)) {
+                vibrate()
+            }
+        }
     }
 
 
     override fun onNewFrame(headTransform: HeadTransform?) {
+        // Build the camera matrix and apply it to the ModelView.
+        Matrix.setLookAtM(camera, 0, 0.0f, 0.0f, CAMERA_Z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f)
+
+        headTransform!!.getHeadView(headView, 0)
+
         asteroids.forEach {
             it.updatePosition()
+        }
+    }
+
+    override fun onDrawEye(eye: Eye?) {
+        if (eye != null) {
+            // Apply the eye transformation to the camera.
+            Matrix.multiplyMM(view, 0, eye.eyeView, 0, camera, 0)
+
+            eyeRender.render(scene, eye, renderer)
         }
     }
 
@@ -124,12 +163,6 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
 
     override fun onSurfaceCreated(config: EGLConfig?) {
 
-    }
-
-    override fun onDrawEye(eye: Eye?) {
-        if (eye != null) {
-            eyeRender.render(scene, eye, renderer)
-        }
     }
 
     override fun onFinishFrame(viewport: Viewport?) {
@@ -153,6 +186,25 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     override fun onAsteroidHit(asteroid: Asteroid) {
         scene.removeChild(asteroid.object3d)
         asteroids.remove(asteroid)
+    }
+
+    private fun isLookingAtObject(object3d: Object3d): Boolean {
+        // Convert object space to camera space. Use the headView from onNewFrame.
+        Matrix.multiplyMM(modelView, 0, headView, 0, object3d.modelMatrix, 0)
+        Matrix.multiplyMV(tempPosition, 0, modelView, 0, POS_MATRIX_MULTIPLY_VEC, 0)
+
+        val pitch = Math.atan2(this.tempPosition!![1].toDouble(), (-tempPosition!![2]).toDouble()).toFloat()
+        val yaw = Math.atan2(tempPosition!![0].toDouble(), (-tempPosition!![2]).toDouble()).toFloat()
+
+        return Math.abs(pitch) < PITCH_LIMIT && Math.abs(yaw) < YAW_LIMIT
+    }
+
+    companion object {
+        // Convenience vector for extracting the position from a matrix via multiplication.
+        private val POS_MATRIX_MULTIPLY_VEC = floatArrayOf(0f, 0f, 0f, 1.0f)
+        private const val YAW_LIMIT = 0.12f
+        private const val PITCH_LIMIT = 0.12f
+        private const val CAMERA_Z = 0.01f
     }
 
 }
