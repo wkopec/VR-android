@@ -12,6 +12,7 @@ class Asteroid(val object3d: Object3d, private val onAsteroidHitListener: OnAste
     private lateinit var yAnimator: ValueAnimator
     private lateinit var zAnimator: ValueAnimator
 
+    var isAsteroidDestroyed = false
 
     fun updatePosition() {
         this.object3d.setPosition(
@@ -51,7 +52,9 @@ class Asteroid(val object3d: Object3d, private val onAsteroidHitListener: OnAste
     }
 
     private fun onHit() {
-        onAsteroidHitListener.onAsteroidHit(this)
+        if(!isAsteroidDestroyed) {
+            onAsteroidHitListener.onAsteroidHit(this)
+        }
     }
 
 }

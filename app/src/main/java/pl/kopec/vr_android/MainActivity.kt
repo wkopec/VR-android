@@ -129,9 +129,10 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     }
 
     override fun onCardboardTrigger() {
-        asteroids.forEach {
-            if(isLookingAtObject(it.object3d)) {
-                vibrate()
+        asteroids.filter { !it.isAsteroidDestroyed }.forEach {
+            if (isLookingAtObject(it.object3d)) {
+                destroyAsteroid(it)
+                vibrate(100)
             }
         }
     }
@@ -143,7 +144,7 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
 
         headTransform!!.getHeadView(headView, 0)
 
-        asteroids.forEach {
+        asteroids.filter { !it.isAsteroidDestroyed }.forEach {
             it.updatePosition()
         }
     }
@@ -173,19 +174,14 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
 
     }
 
-    private fun vibrate() {
-        val v = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            v.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            val pattern = longArrayOf(0, 100, 100, 100)
-            v.vibrate(pattern, -1)
-        }
+    override fun onAsteroidHit(asteroid: Asteroid) {
+        vibrate(1000)
+        //GAME OVER
     }
 
-    override fun onAsteroidHit(asteroid: Asteroid) {
+    private fun destroyAsteroid(asteroid: Asteroid) {
         scene.removeChild(asteroid.object3d)
-        asteroids.remove(asteroid)
+        asteroid.isAsteroidDestroyed = true
     }
 
     private fun isLookingAtObject(object3d: Object3d): Boolean {
@@ -197,6 +193,16 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
         val yaw = Math.atan2(tempPosition!![0].toDouble(), (-tempPosition!![2]).toDouble()).toFloat()
 
         return Math.abs(pitch) < PITCH_LIMIT && Math.abs(yaw) < YAW_LIMIT
+    }
+
+    private fun vibrate(duration: Long) {
+        val v = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            v.vibrate(VibrationEffect.createOneShot(duration, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            val pattern = longArrayOf(0, duration, duration, duration)
+            v.vibrate(pattern, -1)
+        }
     }
 
     companion object {
