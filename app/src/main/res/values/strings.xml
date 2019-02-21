@@ -1,7 +1,5 @@
 <resources>
     <string name="app_name">VR-android</string>
-
-    <string name="title_activity_main">MainActivity</string>
-    <string name="dummy_button">Dummy Button</string>
-    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="new_game_started">New game started.</string>
+    <string name="game_score">You have destroyed %s asteroids</string>
 </resources>

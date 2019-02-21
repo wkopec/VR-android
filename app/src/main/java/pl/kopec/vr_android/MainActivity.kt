@@ -22,6 +22,7 @@ import jmini3d.Texture
 import android.os.AsyncTask
 import java.lang.ref.WeakReference
 import android.os.Vibrator
+import java.util.ArrayList
 
 class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListener {
 
@@ -37,24 +38,28 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     private var modelView: FloatArray? = null
     private var tempPosition: FloatArray? = null
 
+    private lateinit var asteroidGenerator: CountDownTimer
     private var isGameFinished: Boolean = false
+    private var destroyedAsteroids: Int = 0
+
+    lateinit var speechHelper: SpeechHelper
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        speechHelper = SpeechHelper(this)
         renderer = Renderer3d(ResourceLoader(this))
 
         setupArrays()
         setupGvr()
         setupScene()
-        generateNextAsteroid(8000)
-
+        Handler().postDelayed({
+            startNewGame()
+        }, 6000)
     }
 
     private fun setupArrays() {
-
-        //modelCube = FloatArray(16)
         camera = FloatArray(16)
         view = FloatArray(16)
         modelViewProjection = FloatArray(16)
@@ -65,17 +70,15 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     }
 
     private fun setupGvr() {
-
         JMini3d.useOpenglAxisSystem()
         gvr.setEGLConfigChooser(8, 8, 8, 8, 16, 8)
         gvr.setRenderer(this)
         gvr.setTransitionViewEnabled(true)
         gvr.distortionCorrectionEnabled = true
         gvr.asyncReprojectionEnabled = true
-
+        gvr
         AndroidCompat.setSustainedPerformanceMode(this, true)
         gvrView = gvr
-
     }
 
     private fun setupScene() {
@@ -97,12 +100,13 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     }
 
     private fun generateNextAsteroid(nextAsteroidDelay: Long) {
-        object : CountDownTimer(10000, nextAsteroidDelay) {
+        addAsteroid()
+        asteroidGenerator = object : CountDownTimer(10000, nextAsteroidDelay) {
             override fun onTick(millisUntilFinished: Long) {
                 if(!isGameFinished) {
                     addAsteroid()
                 } else {
-                    this.onFinish()
+                    this.cancel()
                 }
             }
 
@@ -143,6 +147,7 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
             asteroids.filter { !it.isAsteroidDestroyed }.forEach {
                 if (isLookingAtObject(it.object3d)) {
                     destroyAsteroid(it)
+                    destroyedAsteroids ++
                     playSound(R.raw.explosion)
                     vibrate(100)
                 }
@@ -186,9 +191,28 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     override fun onAsteroidHit(asteroid: Asteroid) {
         if(!isGameFinished) {
             isGameFinished = true
-            vibrate(1000)
+            asteroidGenerator.cancel()
+            scene.reset()
+            asteroids.forEach { it.isAsteroidDestroyed = true }
+            asteroids.clear()
+            asteroids = HashSet()
+            vibrate(2000)
             playSound(R.raw.game_over)
+
+            Handler().postDelayed({
+                speechHelper.speak(String.format(resources.getString(R.string.game_score), destroyedAsteroids))
+                destroyedAsteroids = 0
+                Handler().postDelayed({
+                    startNewGame()
+                }, 3000)
+            }, 3000)
         }
+    }
+
+    private fun startNewGame() {
+        isGameFinished = false
+        speechHelper.speak(resources.getString(R.string.new_game_started))
+        generateNextAsteroid(8000)
     }
 
     private fun destroyAsteroid(asteroid: Asteroid) {
