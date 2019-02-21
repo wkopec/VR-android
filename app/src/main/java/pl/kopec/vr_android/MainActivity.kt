@@ -1,6 +1,7 @@
 package pl.kopec.vr_android
 
 import android.content.Context
+import android.media.MediaPlayer
 import android.opengl.Matrix
 import android.os.*
 import com.google.vr.sdk.base.*
@@ -35,6 +36,8 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     private var modelViewProjection: FloatArray? = null
     private var modelView: FloatArray? = null
     private var tempPosition: FloatArray? = null
+
+    private var isGameFinished: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,11 +99,17 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     private fun generateNextAsteroid(nextAsteroidDelay: Long) {
         object : CountDownTimer(10000, nextAsteroidDelay) {
             override fun onTick(millisUntilFinished: Long) {
-                addAsteroid()
+                if(!isGameFinished) {
+                    addAsteroid()
+                } else {
+                    this.onFinish()
+                }
             }
 
             override fun onFinish() {
-                generateNextAsteroid((nextAsteroidDelay * 0.8).toLong())
+                if(!isGameFinished) {
+                    generateNextAsteroid((nextAsteroidDelay * 0.8).toLong())
+                }
             }
         }.start()
     }
@@ -129,19 +138,20 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
     }
 
     override fun onCardboardTrigger() {
-        asteroids.filter { !it.isAsteroidDestroyed }.forEach {
-            if (isLookingAtObject(it.object3d)) {
-                destroyAsteroid(it)
-                vibrate(100)
+        if(!isGameFinished) {
+            playSound(R.raw.laser)
+            asteroids.filter { !it.isAsteroidDestroyed }.forEach {
+                if (isLookingAtObject(it.object3d)) {
+                    destroyAsteroid(it)
+                    playSound(R.raw.explosion)
+                    vibrate(100)
+                }
             }
         }
     }
 
-
     override fun onNewFrame(headTransform: HeadTransform?) {
-        // Build the camera matrix and apply it to the ModelView.
         Matrix.setLookAtM(camera, 0, 0.0f, 0.0f, CAMERA_Z, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f)
-
         headTransform!!.getHeadView(headView, 0)
 
         asteroids.filter { !it.isAsteroidDestroyed }.forEach {
@@ -151,9 +161,7 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
 
     override fun onDrawEye(eye: Eye?) {
         if (eye != null) {
-            // Apply the eye transformation to the camera.
             Matrix.multiplyMM(view, 0, eye.eyeView, 0, camera, 0)
-
             eyeRender.render(scene, eye, renderer)
         }
     }
@@ -174,9 +182,13 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
 
     }
 
+    //GAME OVER
     override fun onAsteroidHit(asteroid: Asteroid) {
-        vibrate(1000)
-        //GAME OVER
+        if(!isGameFinished) {
+            isGameFinished = true
+            vibrate(1000)
+            playSound(R.raw.game_over)
+        }
     }
 
     private fun destroyAsteroid(asteroid: Asteroid) {
@@ -203,6 +215,12 @@ class MainActivity : GvrActivity(), GvrView.StereoRenderer, OnAsteroidHitListene
             val pattern = longArrayOf(0, duration, duration, duration)
             v.vibrate(pattern, -1)
         }
+    }
+
+    private var player = MediaPlayer()
+    private fun playSound(sound: Int) {
+        player = MediaPlayer.create(this, sound)
+        player.start()
     }
 
     companion object {
